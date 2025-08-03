@@ -1,0 +1,532 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Water Delivery Modalities - Enhanced Interactive Heatmap</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    .cell {
+      stroke-width: 1.5px;
+    }
+    .tooltip {
+      position: absolute;
+      text-align: left;
+      padding: 8px;
+      font-size: 12px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .legend {
+      margin-top: 20px;
+    }
+    .legend div {
+      display: inline-block;
+      margin-right: 20px;
+    }
+    .icon-box {
+      font-size: 14px;
+      text-anchor: middle;
+      alignment-baseline: middle;
+      pointer-events: none;
+    }
+    .cost-label {
+      font-size: 10px;
+      text-anchor: middle;
+      alignment-baseline: hanging;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>Water Delivery Modalities: Cost, Complexity & Ownership</h2>
+  <div id="heatmap"></div>
+  <div class="legend">
+    <strong>Ownership Legend:</strong><br/>
+    <div>🏛️ Public</div>
+    <div>🏢 Private</div>
+    <div>🏠 Household</div>
+    <div>⚪ Unknown</div>
+    <br/><br/>
+    <strong>Cost/Complexity Color Scale:</strong>
+    <div style="background:#ffffcc;width:20px;height:20px;display:inline-block;border:1px solid #ccc;"></div> Low
+    <div style="background:#ffeda0;width:20px;height:20px;display:inline-block;border:1px solid #ccc;"></div>
+    <div style="background:#feb24c;width:20px;height:20px;display:inline-block;border:1px solid #ccc;"></div>
+    <div style="background:#f03b20;width:20px;height:20px;display:inline-block;border:1px solid #ccc;"></div>
+    <div style="background:#bd0026;width:20px;height:20px;display:inline-block;border:1px solid #ccc;"></div> High
+  </div>
+  <script>
+    const data = [
+  {
+    "modality": "Self-supply",
+    "stage": "Source",
+    "cost_level": 2,
+    "reason": "Groundwater-based; high CAPEX upfront for boreholes and pumps",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "NGN 74/m\u00b3",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply",
+    "stage": "Conveyance",
+    "cost_level": 1,
+    "reason": "No active conveyance; water used at source or carried manually",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply",
+    "stage": "Primary Storage",
+    "cost_level": 2,
+    "reason": "Requires household investment in storage tanks; cost varies by material",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "NGN 100K\u20131M",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply",
+    "stage": "Treatment",
+    "cost_level": 0,
+    "reason": "No treatment applied; used as-is",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply",
+    "stage": "Distribution",
+    "cost_level": 1,
+    "reason": "Direct use or gravity-fed; minimal complexity",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply",
+    "stage": "Access",
+    "cost_level": 1,
+    "reason": "Located at household level; low barrier",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply + treatment",
+    "stage": "Source",
+    "cost_level": 2,
+    "reason": "Same as self-supply; high CAPEX for boreholes",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply + treatment",
+    "stage": "Conveyance",
+    "cost_level": 1,
+    "reason": "Same as above; no mechanical conveyance",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply + treatment",
+    "stage": "Primary Storage",
+    "cost_level": 2,
+    "reason": "Same tank costs, often larger for treated supply",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply + treatment",
+    "stage": "Treatment",
+    "cost_level": 3,
+    "reason": "High due to RO filters, aeration, extra plumbing; electricity costs too",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "NGN 104/m\u00b3",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply + treatment",
+    "stage": "Distribution",
+    "cost_level": 1,
+    "reason": "Same as self-supply; minimal pumping unless elevated",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Self-supply + treatment",
+    "stage": "Access",
+    "cost_level": 1,
+    "reason": "Household-level taps or buckets; low complexity",
+    "ownership": "\ud83c\udfe0",
+    "cost_text": "",
+    "ownership_label": "Household"
+  },
+  {
+    "modality": "Packaged Water",
+    "stage": "Source",
+    "cost_level": 2,
+    "reason": "Commercially extracted groundwater; regulated supply",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Packaged Water",
+    "stage": "Conveyance",
+    "cost_level": 0,
+    "reason": "Not applicable; water bottled onsite",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Packaged Water",
+    "stage": "Primary Storage",
+    "cost_level": 0,
+    "reason": "Not applicable; storage internal to factory",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Packaged Water",
+    "stage": "Treatment",
+    "cost_level": 4,
+    "reason": "Very high; includes RO, UV, chemical dosing",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "High (RO, UV)",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Packaged Water",
+    "stage": "Distribution",
+    "cost_level": 0,
+    "reason": "Not via pipe; through retail delivery chains",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Packaged Water",
+    "stage": "Access",
+    "cost_level": 0,
+    "reason": "Purchased per bottle or sachet; no infra needed",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Private Tankers",
+    "stage": "Source",
+    "cost_level": 2,
+    "reason": "Typically from boreholes; may pay for bulk water",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Private Tankers",
+    "stage": "Conveyance",
+    "cost_level": 0,
+    "reason": "Truck transport; fuel costs and driver wages",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Private Tankers",
+    "stage": "Primary Storage",
+    "cost_level": 0,
+    "reason": "No storage before delivery; consumed or stored at destination",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Private Tankers",
+    "stage": "Treatment",
+    "cost_level": 2,
+    "reason": "Sometimes post-treated; depends on bulk source",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "NGN 442/m\u00b3",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Private Tankers",
+    "stage": "Distribution",
+    "cost_level": 4,
+    "reason": "Very high cost; driven by fuel and labor",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Private Tankers",
+    "stage": "Access",
+    "cost_level": 0,
+    "reason": "Offloaded to buyer\u2019s tank or drum",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Informal Vendors",
+    "stage": "Source",
+    "cost_level": 2,
+    "reason": "Source is cheap or free; often unregulated",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Informal Vendors",
+    "stage": "Conveyance",
+    "cost_level": 0,
+    "reason": "Manual carts or small tanks pulled/pushed",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Informal Vendors",
+    "stage": "Primary Storage",
+    "cost_level": 0,
+    "reason": "None; water carried as needed",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Informal Vendors",
+    "stage": "Treatment",
+    "cost_level": 1,
+    "reason": "None or minimal; safety is questionable",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Informal Vendors",
+    "stage": "Distribution",
+    "cost_level": 4,
+    "reason": "High markup on labor; low reliability",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Informal Vendors",
+    "stage": "Access",
+    "cost_level": 0,
+    "reason": "Sold door to door or roadside",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Water Kiosks",
+    "stage": "Source",
+    "cost_level": 2,
+    "reason": "Groundwater or bulk water; moderate CAPEX",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Water Kiosks",
+    "stage": "Conveyance",
+    "cost_level": 1,
+    "reason": "Stationary source; users carry away",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Water Kiosks",
+    "stage": "Primary Storage",
+    "cost_level": 3,
+    "reason": "Kiosk tanks needed; costs shared or private",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "NGN 100K",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Water Kiosks",
+    "stage": "Treatment",
+    "cost_level": 3,
+    "reason": "If present, uses basic filtration or RO; costly to run",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Water Kiosks",
+    "stage": "Distribution",
+    "cost_level": 0,
+    "reason": "No pipeline; customers transport manually",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Water Kiosks",
+    "stage": "Access",
+    "cost_level": 2,
+    "reason": "Pay-per-fetch model; may walk long distances",
+    "ownership": "\ud83c\udfe2",
+    "cost_text": "",
+    "ownership_label": "Private"
+  },
+  {
+    "modality": "Public Piped",
+    "stage": "Source",
+    "cost_level": 4,
+    "reason": "Surface/groundwater; large-scale extraction infra",
+    "ownership": "\ud83c\udfdb",
+    "cost_text": "",
+    "ownership_label": "Unknown"
+  },
+  {
+    "modality": "Public Piped",
+    "stage": "Conveyance",
+    "cost_level": 4,
+    "reason": "8+ km pipelines; high pump energy needs",
+    "ownership": "\ud83c\udfdb",
+    "cost_text": "",
+    "ownership_label": "Unknown"
+  },
+  {
+    "modality": "Public Piped",
+    "stage": "Primary Storage",
+    "cost_level": 2,
+    "reason": "Utility reservoirs; CAPEX + electricity",
+    "ownership": "\ud83c\udfdb",
+    "cost_text": "",
+    "ownership_label": "Unknown"
+  },
+  {
+    "modality": "Public Piped",
+    "stage": "Treatment",
+    "cost_level": 4,
+    "reason": "Full treatment plant; high fixed & recurring costs",
+    "ownership": "\ud83c\udfdb",
+    "cost_text": ">NGN 9000/m\u00b3",
+    "ownership_label": "Unknown"
+  },
+  {
+    "modality": "Public Piped",
+    "stage": "Distribution",
+    "cost_level": 4,
+    "reason": "Extensive piping network; leakage, pressure losses",
+    "ownership": "\ud83c\udfdb",
+    "cost_text": "NGN 7000/m\u00b3",
+    "ownership_label": "Unknown"
+  },
+  {
+    "modality": "Public Piped",
+    "stage": "Access",
+    "cost_level": 3,
+    "reason": "Low metering; high connection costs",
+    "ownership": "\ud83c\udfdb",
+    "cost_text": "",
+    "ownership_label": "Unknown"
+  }
+];
+
+
+    const width = 1050;
+    const height = 520;
+    const margin = { top: 60, right: 20, bottom: 20, left: 200 };
+    const colors = ["#ffffcc", "#ffeda0", "#feb24c", "#f03b20", "#bd0026"];
+
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0);
+
+    const stages = [...new Set(data.map(d => d.stage))];
+    const modalities = [...new Set(data.map(d => d.modality))];
+
+    const cellWidth = (width - margin.left - margin.right) / stages.length;
+    const cellHeight = (height - margin.top - margin.bottom) / modalities.length;
+
+    const svg = d3.select("#heatmap")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    svg.selectAll(".rowLabel")
+      .data(modalities)
+      .enter().append("text")
+      .attr("x", margin.left - 10)
+      .attr("y", (d, i) => margin.top + i * cellHeight + cellHeight / 2)
+      .attr("text-anchor", "end")
+      .attr("alignment-baseline", "middle")
+      .text(d => d);
+
+    svg.selectAll(".colLabel")
+      .data(stages)
+      .enter().append("text")
+      .attr("x", (d, i) => margin.left + i * cellWidth + cellWidth / 2)
+      .attr("y", margin.top - 10)
+      .attr("text-anchor", "middle")
+      .text(d => d);
+
+    // Draw cells
+    const cellGroup = svg.selectAll(".cell")
+      .data(data)
+      .enter();
+
+    cellGroup.append("rect")
+      .attr("class", "cell")
+      .attr("x", d => margin.left + stages.indexOf(d.stage) * cellWidth)
+      .attr("y", d => margin.top + modalities.indexOf(d.modality) * cellHeight)
+      .attr("width", cellWidth)
+      .attr("height", cellHeight)
+      .attr("fill", d => colors[d.cost_level])
+      .attr("stroke", "#666");
+
+    // Add icon for ownership inside the cell
+    cellGroup.append("text")
+      .attr("class", "icon-box")
+      .attr("x", d => margin.left + stages.indexOf(d.stage) * cellWidth + cellWidth / 2)
+      .attr("y", d => margin.top + modalities.indexOf(d.modality) * cellHeight + 14)
+      .text(d => d.ownership);
+
+    // Add cost label inside the cell (if available)
+    cellGroup.append("text")
+      .attr("class", "cost-label")
+      .attr("x", d => margin.left + stages.indexOf(d.stage) * cellWidth + cellWidth / 2)
+      .attr("y", d => margin.top + modalities.indexOf(d.modality) * cellHeight + cellHeight - 12)
+      .text(d => d.cost_text);
+
+    // Tooltip events
+    cellGroup.selectAll("rect")
+      .on("mouseover", (event, d) => {
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(
+          `<strong>Modality:</strong> ${d.modality}<br/>
+           <strong>Stage:</strong> ${d.stage}<br/>
+           <strong>Cost Level:</strong> ${d.cost_level}<br/>
+           <strong>Ownership:</strong> ${d.ownership_label}<br/>
+           <strong>Reason:</strong> ${d.reason}<br/>
+           <strong>Cost Info:</strong> ${d.cost_text || 'N/A'}`
+        )
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
+      })
+      .on("mouseout", () => {
+        tooltip.transition().duration(500).style("opacity", 0);
+      });
+  </script>
+</body>
+</html>
